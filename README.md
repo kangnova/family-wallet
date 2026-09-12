@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dompet Keluarga — Family Finance Management
 
-## Getting Started
+A web app for couples to manage household finances together: track combined income, expenses,
+and per-category budgets so money decisions happen *before* spending, not after the fact.
 
-First, run the development server:
+Built as a portfolio project: clean architecture, end-to-end type safety, and clear documentation.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Problem it solves
+
+Most people only find out where their money went *after* the month ends. This app moves control
+to the front: every category has a budget limit, and the remaining budget is visible in real time
+before the next purchase.
+
+Household finance has one specific pain point: partners often hold *different versions* of the
+same numbers. The solution is a shared ledger — two accounts, one source of truth.
+
+---
+
+## Tech Stack
+
+| Layer        | Technology                         | Why                                                              |
+|--------------|------------------------------------|------------------------------------------------------------------|
+| Framework    | Next.js 14 (App Router)            | Industry standard, SSR/SEO, one codebase for frontend + backend |
+| Language     | TypeScript (strict)                | End-to-end type safety; strong signal in a portfolio             |
+| Database     | PostgreSQL                         | Relational; well-suited to transactional financial data         |
+| ORM          | Prisma                             | Migrations + type safety + query builder; de-facto standard      |
+| Auth         | NextAuth.js (Auth.js)              | Login + sessions + invites; self-hosted, free                    |
+| Validation   | Zod                                | Single source of truth for API + form input validation           |
+| Data fetching| TanStack Query (React Query)       | Caching and revalidation of server state                         |
+| UI           | Tailwind CSS + shadcn/ui           | Fast, polished UI with ready-made components                     |
+| Charts       | Recharts                           | Pie/bar charts for reports                                       |
+| Testing      | Vitest + Testing Library + Playwright | Unit, integration, and E2E coverage                            |
+| CI/CD        | GitHub Actions                     | Lint + typecheck + test on every push                            |
+| Deploy       | Vercel + Neon (Postgres)           | Free tier, auto-deploy from GitHub                               |
+
+### Lighter alternative (to start faster)
+
+- Frontend: React + Vite + TypeScript (no SSR)
+- Backend: Express/Fastify + Prisma (separate REST API)
+- Easier for beginners, but full-stack Next.js carries more portfolio weight because it
+  demonstrates mastery of one modern framework end to end.
+
+---
+
+## Architecture (high level)
+
+```
+[Browser]  →  [Next.js App Router]
+                 ├── /api/*  (Route Handlers = REST API)
+                 │      ↓  (Zod validation)
+                 ├── services/  (domain logic: budgeting, health score, reports)
+                 │      ↓  (Prisma Client)
+                 └── [PostgreSQL]
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Separation of concerns:
+- `app/api/*` → receives requests, validates input, returns responses. No business logic.
+- `services/*` → all financial rules (remaining budget, savings rate, health score). Pure,
+  testable functions.
+- `prisma/` → database schema + migrations.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Why separate: isolated business logic is easy to test and easy to explain in an interview
+("I keep domain logic out of the transport layer so it's testable").
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Project Structure (planned)
 
-To learn more about Next.js, take a look at the following resources:
+```
+dompet-keluarga/
+├── prisma/
+│   └── schema.prisma          # data models + migrations
+├── src/
+│   ├── app/                   # routes (pages + API route handlers)
+│   │   ├── (auth)/login
+│   │   ├── (auth)/register
+│   │   ├── dashboard/
+│   │   ├── transactions/
+│   │   ├── budget/
+│   │   ├── reports/
+│   │   ├── goals/
+│   │   ├── settings/
+│   │   └── api/v1/            # REST endpoints
+│   ├── components/            # UI components (shadcn/ui)
+│   ├── services/              # domain logic (testable)
+│   ├── lib/                   # prisma client, auth, helpers
+│   └── types/
+├── tests/
+│   ├── unit/                  # Vitest
+│   ├── integration/           # API + DB
+│   └── e2e/                   # Playwright
+├── docs/
+│   └── SPEC.md                # full specification (see this file)
+├── .github/workflows/ci.yml
+└── README.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roadmap
 
-## Deploy on Vercel
+- **MVP** — two-user login + one family, income/expense tracking, categories, per-category
+  budgets, dashboard, monthly reports.
+- **v1** — recurring transactions, savings goals, budget alerts, search & filters.
+- **v2** — receipt scanning (OCR), WhatsApp/email input, health score & savings rate,
+  multi-family support.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Documentation
+
+Full specification (requirements, data model, API, business rules, testing, security):
+see [docs/SPEC.md](docs/SPEC.md).
