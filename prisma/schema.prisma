@@ -1,0 +1,193 @@
+// Prisma schema — Dompet Keluarga (family finance)
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  MEMBER
+  VIEWER
+}
+
+enum CatType {
+  INCOME
+  EXPENSE
+}
+
+enum CatGroup {
+  NEEDS
+  WANTS
+  SAVINGS
+  INCOME
+}
+
+enum Interval {
+  MONTHLY
+  WEEKLY
+}
+
+enum InvStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+
+  memberships   FamilyMember[]
+  ownedFamilies Family[]       @relation("FamilyOwner")
+  transactions  Transaction[]
+}
+
+model Family {
+  id          String                @id @default(cuid())
+  name        String
+  ownerId     String
+  owner       User                  @relation("FamilyOwner", fields: [ownerId], references: [id])
+  createdAt   DateTime              @default(now())
+
+  members     FamilyMember[]
+  categories  Category[]
+  transactions Transaction[]
+  budgets     Budget[]
+  goals       Goal[]
+  recurring   RecurringTransaction[]
+  invitations Invitation[]
+}
+
+model FamilyMember {
+  id       String   @id @default(cuid())
+  familyId String
+  userId   String
+  role     Role     @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  familyId  String?    // null = system (default) category shared by all families
+  name      String
+  type      CatType
+  group     CatGroup
+  parentId  String?
+  icon      String?
+  color     String?
+  isSystem  Boolean    @default(false)
+
+  family        Family?       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  parent        Category?     @relation("CategoryTree", fields: [parentId], references: [id])
+  children      Category[]    @relation("CategoryTree")
+  transactions  Transaction[]
+  budgets       Budget[]
+  recurring     RecurringTransaction[]
+
+  @@index([familyId])
+  @@index([type, group])
+}
+
+model Transaction {
+  id         String   @id @default(cuid())
+  familyId   String
+  userId     String
+  categoryId String
+  goalId     String? // optional link to a savings goal
+  type       CatType
+  amount     Int // integer Rupiah, always positive
+  date       DateTime @db.Date
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+  goal     Goal?    @relation(fields: [goalId], references: [id])
+
+  @@index([familyId, date])
+  @@index([familyId, categoryId, date])
+}
+
+model Budget {
+  id          String @id @default(cuid())
+  familyId    String
+  categoryId  String
+  limitAmount Int
+  month       String // "YYYY-MM" (e.g. "2026-09")
+
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([familyId, categoryId, month])
+  @@index([familyId, month])
+}
+
+model Goal {
+  id           String    @id @default(cuid())
+  familyId     String
+  name         String
+  targetAmount Int
+  deadline     DateTime? @db.Date
+  createdAt    DateTime  @default(now())
+
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([familyId])
+}
+
+model RecurringTransaction {
+  id          String   @id @default(cuid())
+  familyId    String
+  categoryId  String
+  name        String
+  amount      Int
+  interval    Interval @default(MONTHLY)
+  nextDueDate DateTime @db.Date
+  isActive    Boolean  @default(true)
+
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@index([familyId])
+}
+
+model Invitation {
+  id        String    @id @default(cuid())
+  familyId  String
+  email     String
+  token     String    @unique
+  role      Role      @default(MEMBER)
+  status    InvStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
