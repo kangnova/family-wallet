@@ -31,8 +31,11 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         // Resolve the user's family id once at sign-in and keep it in the JWT.
+        // Pick the most recent membership so a user who just accepted an invite
+        // lands in the newly joined family after re-authenticating.
         const membership = await prisma.familyMember.findFirst({
           where: { userId: user.id },
+          orderBy: { joinedAt: 'desc' },
         })
         if (membership) token.familyId = membership.familyId
       }

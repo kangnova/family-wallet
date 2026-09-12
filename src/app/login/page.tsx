@@ -21,7 +21,8 @@ export default function LoginPage() {
     if (res?.error) {
       setError('Invalid email or password')
     } else {
-      router.push('/dashboard')
+      const params = new URLSearchParams(window.location.search)
+      router.push(params.get('callbackUrl') ?? '/dashboard')
       router.refresh()
     }
   }
